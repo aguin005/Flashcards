@@ -87,7 +87,7 @@ export function GlobalSearch() {
             inputRef.current?.blur();
           }
         }}
-        className="h-10 w-full rounded-xl border border-slate-200 bg-white pr-10 pl-9 text-sm text-slate-900 placeholder:text-slate-400 shadow-xs focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+        className="h-10 w-full rounded-xl border border-slate-200 bg-white pr-3 pl-9 sm:pr-10 text-sm text-slate-900 placeholder:text-slate-400 shadow-xs focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
       />
       <kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded border border-slate-200 px-1.5 text-xs text-slate-400 sm:block dark:border-slate-700">
         /

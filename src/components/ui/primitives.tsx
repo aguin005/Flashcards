@@ -231,7 +231,7 @@ export function StatTile({
         <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</span>
         {icon && <span className="text-slate-400 dark:text-slate-500">{icon}</span>}
       </div>
-      <div className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums sm:text-3xl dark:text-white">
+      <div className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
         {value}
       </div>
       {hint && <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{hint}</div>}

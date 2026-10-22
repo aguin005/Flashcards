@@ -3,33 +3,30 @@ import { CalendarClock, Star } from 'lucide-react';
 import type { CardProgress, MasteryLevel, StudySet } from '../types';
 import { masteryOf, MASTERY_LABELS, MASTERY_DESCRIPTIONS, isDue } from '../lib/spaced-repetition';
 import { cn, formatRelative, pluralize } from '../lib/utils';
-import { Badge, Panel, type BadgeTone } from './ui/primitives';
+import { Badge, Panel } from './ui/primitives';
 import type { ProgressMap } from '../lib/stats';
 import { setMasteryCounts } from '../lib/stats';
 
-export const MASTERY_TONES: Record<MasteryLevel, BadgeTone> = {
-  new: 'slate',
-  learning: 'red',
-  developing: 'amber',
-  familiar: 'sky',
-  mastered: 'green',
-};
-
-/** Solid colors for bars, ordered from weakest to strongest. */
+/** Ordinal ramp fills (see --color-mastery-* in index.css), weakest to strongest. */
 export const MASTERY_BAR: Record<MasteryLevel, string> = {
-  new: 'bg-slate-300 dark:bg-slate-600',
-  learning: 'bg-rose-500',
-  developing: 'bg-amber-400',
-  familiar: 'bg-sky-500',
-  mastered: 'bg-emerald-500',
+  new: 'bg-mastery-new',
+  learning: 'bg-mastery-learning',
+  developing: 'bg-mastery-developing',
+  familiar: 'bg-mastery-familiar',
+  mastered: 'bg-mastery-mastered',
 };
 
+/** Neutral pill with a ramp-colored dot; the text carries the meaning, the dot the position. */
 export function MasteryBadge({ progress }: { progress: CardProgress | undefined }) {
   const level = masteryOf(progress);
   return (
-    <Badge tone={MASTERY_TONES[level]} title={MASTERY_DESCRIPTIONS[level]}>
+    <span
+      title={MASTERY_DESCRIPTIONS[level]}
+      className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+    >
+      <span className={cn('size-2 rounded-full', MASTERY_BAR[level])} aria-hidden />
       {MASTERY_LABELS[level]}
-    </Badge>
+    </span>
   );
 }
 
@@ -83,7 +80,12 @@ export function MasteryBar({
     <div
       role="img"
       aria-label={`Mastery: ${summary}`}
-      className={cn('flex h-2 w-full gap-0.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800', className)}
+      className={cn(
+        // Segments are separated by a 2px gap in the surface color; the gray track shows only when empty.
+        'flex h-2 w-full gap-0.5 overflow-hidden rounded-full',
+        total === 0 && 'bg-slate-100 dark:bg-slate-800',
+        className,
+      )}
     >
       {total > 0 &&
         levels.map((l) =>

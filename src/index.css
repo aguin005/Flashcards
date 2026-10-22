@@ -17,6 +17,17 @@
   --color-brand-900: #2f2e87;
   --color-brand-950: #1d1b4f;
 
+  /* Mastery is an ordered scale: one hue, light to dark (validated ordinal ramp). */
+  --color-mastery-new: #cbd5e1;
+  --color-mastery-learning: #a3adff;
+  --color-mastery-developing: #7c84ff;
+  --color-mastery-familiar: #4a49f0;
+  --color-mastery-mastered: #2f2e87;
+
+  /* Single-series chart marks and chrome. */
+  --color-chart-bar: #4a49f0;
+  --color-chart-grid: #e2e8f0;
+
   --animate-shake: shake 0.4s ease-in-out;
   --animate-pop: pop 0.25s ease-out;
   --animate-fade-in: fade-in 0.2s ease-out;
@@ -34,6 +45,17 @@
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
   }
+}
+
+/* Dark mode uses its own validated steps from the same ramp, anchored the other way. */
+.dark {
+  --color-mastery-new: #475569;
+  --color-mastery-learning: #4a49f0;
+  --color-mastery-developing: #7c84ff;
+  --color-mastery-familiar: #a3adff;
+  --color-mastery-mastered: #e0e5ff;
+  --color-chart-bar: #7c84ff;
+  --color-chart-grid: #1e293b;
 }
 
 @layer base {
