@@ -29,6 +29,8 @@ test.describe('Flashcards', () => {
     await page.keyboard.press('2');
     await expect(progress).toHaveText('4 of 11');
     await page.keyboard.press('s'); // star card 4
+    // The star is shown only after it is saved, so wait for it before reloading.
+    await expect(page.getByRole('button', { name: 'Unstar Mitochondria' })).toBeVisible();
 
     // Position is remembered between sessions.
     await page.reload();
@@ -158,6 +160,7 @@ test.describe('Written recall', () => {
     await page.getByRole('button', { name: 'Example and options' }).first().click();
     await page.locator('input[id^="alt-"]').first().fill('DNA');
     await page.getByTestId('save-editor').click();
+    await expect(page).toHaveURL(new RegExp(`#/sets/${setId}$`));
     await page.goto(`#/study/written?set=${setId}`);
     await page.getByRole('radio', { name: 'Type the term' }).click();
     await page.getByTestId('start-written').click();

@@ -96,6 +96,7 @@ test.describe('Study set management and data', () => {
     await page.getByRole('menuitem', { name: 'Delete set' }).click();
     await expect(page.getByRole('dialog')).toContainText('stored source PDF');
     await page.getByTestId('confirm-ok').click();
+    await expect(page).toHaveURL(/#\/sets$/);
     await page.goto('#/upload');
     await expect(page.getByText('Recent imports')).toHaveCount(0);
     await page.goto('#/settings');

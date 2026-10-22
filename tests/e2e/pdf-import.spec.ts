@@ -75,7 +75,7 @@ test.describe('PDF upload and vocabulary extraction', () => {
   test('the review draft is kept across a reload', async ({ page }) => {
     await importPdf(page);
     await page.getByTestId('entry-definition').first().fill('Edited before reload.');
-    await page.waitForTimeout(800); // autosave debounce
+    await expect(page.getByTestId('draft-status')).toHaveText('Draft saved');
     await page.reload();
     await expect(page.getByTestId('entry-definition').first()).toHaveValue('Edited before reload.');
     await page.goto('#/upload');

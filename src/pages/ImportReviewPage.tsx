@@ -55,6 +55,7 @@ export default function ImportReviewPage() {
   const [showText, setShowText] = useState(false);
   const [textPage, setTextPage] = useState(1);
   const [validation, setValidation] = useState<string | null>(null);
+  const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const dirty = useRef(false);
 
   useEffect(() => {
@@ -78,10 +79,14 @@ export default function ImportReviewPage() {
   // Autosave edits to the draft so a refresh never loses review work.
   useEffect(() => {
     if (!record || !dirty.current) return;
+    setDraftStatus('saving');
     const t = setTimeout(() => {
-      saveImport({ ...record, entries }).catch((err) =>
-        toast({ kind: 'error', title: 'Draft not saved', description: errorMessage(err) }),
-      );
+      saveImport({ ...record, entries })
+        .then(() => setDraftStatus('saved'))
+        .catch((err) => {
+          setDraftStatus('error');
+          toast({ kind: 'error', title: 'Draft not saved', description: errorMessage(err) });
+        });
     }, 500);
     return () => clearTimeout(t);
   }, [entries, record, toast]);
@@ -321,6 +326,11 @@ export default function ImportReviewPage() {
         {stats.duplicatesRemoved > 0 && (
           <Badge tone="slate">{pluralize(stats.duplicatesRemoved, 'duplicate')} merged</Badge>
         )}
+        <span role="status" className="ml-auto text-xs text-slate-500 dark:text-slate-400" data-testid="draft-status">
+          {draftStatus === 'saving' && 'Saving…'}
+          {draftStatus === 'saved' && 'Draft saved'}
+          {draftStatus === 'error' && 'Draft not saved'}
+        </span>
       </div>
 
       {pagesWithoutText > 0 && !record.usedOcr && (
