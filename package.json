@@ -1,0 +1,45 @@
+{
+  "name": "flashcards-study",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A personal, local-first study website for vocabulary flashcards, quizzes, and PDF term extraction.",
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/copy-assets.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/copy-assets.mjs",
+    "build": "tsc -b && vite build",
+    "build:pages": "cross-env BASE_PATH=/Flashcards/ npm run build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "idb": "^8.0.4",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "~5.4.624",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.4",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "cross-env": "^7.0.3",
+    "fake-indexeddb": "^6.2.6",
+    "pdf-lib": "^1.17.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.7",
+    "vitest": "^3.2.7"
+  }
+}
