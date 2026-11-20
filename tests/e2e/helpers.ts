@@ -31,8 +31,13 @@ export const SPANISH: [string, string][] = [
 export async function createManualSet(page: Page, title: string, pairs: [string, string][]): Promise<string> {
   await page.goto('#/sets/new');
   await page.locator('#title').fill(title);
-  for (let i = 3; i < pairs.length; i++) await page.getByRole('button', { name: 'Add card' }).click();
   const terms = page.locator('textarea[id^="term-"]');
+  for (let i = 3; i < pairs.length; i++) {
+    await page.getByRole('button', { name: 'Add card' }).click();
+    // "Add card" moves focus to the new row on the next frame; wait for it so the fills below
+    // are not redirected into that row mid-typing.
+    await expect(terms.nth(i)).toBeFocused();
+  }
   const defs = page.locator('textarea[id^="def-"]');
   for (const [i, [term, def]] of pairs.entries()) {
     await terms.nth(i).fill(term);
