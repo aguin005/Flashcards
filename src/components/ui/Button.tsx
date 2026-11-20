@@ -30,16 +30,16 @@ const VARIANTS: Record<ButtonVariant, string> = {
 };
 
 const SIZES: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-sm gap-1.5 rounded-lg',
+  sm: 'h-10 px-3 text-sm gap-1.5 rounded-lg sm:h-8',
   md: 'h-10 px-4 text-sm gap-2 rounded-xl',
   lg: 'h-12 px-5 text-base gap-2 rounded-xl',
   icon: 'h-10 w-10 rounded-xl',
-  'icon-sm': 'h-8 w-8 rounded-lg',
+  'icon-sm': 'h-10 w-10 rounded-lg sm:h-8 sm:w-8',
 };
 
 export function buttonClass(variant: ButtonVariant = 'primary', size: ButtonSize = 'md', extra?: string): string {
   return cn(
-    'inline-flex shrink-0 items-center justify-center font-medium whitespace-nowrap transition-colors select-none disabled:cursor-not-allowed disabled:opacity-60',
+    'inline-flex shrink-0 items-center justify-center font-medium whitespace-nowrap transition-[color,background-color,border-color,transform] select-none active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100',
     VARIANTS[variant],
     SIZES[size],
     extra,

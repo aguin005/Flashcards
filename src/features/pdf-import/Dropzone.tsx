@@ -19,7 +19,7 @@ export function Dropzone({ onFile, disabled }: { onFile: (file: File) => void; d
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
-      aria-label="Upload a PDF. Drop a file here or press Enter to browse."
+      aria-label="Upload a PDF, or a .txt or .csv file. Drop a file here or press Enter to browse."
       onClick={() => !disabled && inputRef.current?.click()}
       onKeyDown={(e) => {
         if ((e.key === 'Enter' || e.key === ' ') && !disabled) {
@@ -46,15 +46,23 @@ export function Dropzone({ onFile, disabled }: { onFile: (file: File) => void; d
         <FileUp className="size-7" aria-hidden />
       </div>
       <p className="text-base font-semibold text-slate-900 dark:text-white">
-        {dragging ? 'Drop your PDF here' : 'Drag and drop a PDF, or click to browse'}
+        {dragging ? (
+          'Drop your file here'
+        ) : (
+          <>
+            <span className="pointer-coarse:hidden">Drag and drop a PDF, or click to browse</span>
+            <span className="hidden pointer-coarse:inline">Tap to choose a PDF</span>
+          </>
+        )}
       </p>
       <p className="mt-1.5 max-w-md text-sm text-slate-500 dark:text-slate-400">
-        Class notes, textbook chapters, vocabulary lists, or study guides. Text-based PDFs work best.
+        Class notes, textbook chapters, vocabulary lists, or study guides. Text-based PDFs work best. A .txt or .csv
+        file also works.
       </p>
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf,.pdf"
+        accept="application/pdf,.pdf,.txt,.csv,.tsv,text/plain,text/csv"
         className="sr-only"
         tabIndex={-1}
         data-testid="file-input"

@@ -22,15 +22,22 @@ Once deployed, the site for this repository lives at **https://aguin005.github.i
 - Optional OCR for scanned PDFs (tesseract.js). The OCR engine is served by this site itself, so no third-party server is contacted; it downloads about 15 MB the first time you use it.
 - Review screen: edit terms, definitions, examples, and page numbers; delete or add entries; search and filter (selected, needs review, duplicates, incomplete); remove duplicates; select which entries to import; view the extracted text page by page; save as a new set or add to an existing one. The draft is autosaved, so a refresh does not lose your review work.
 
+**Paste text** (Upload page → **Paste text** tab, or `#/upload?mode=paste`)
+- Paste notes, a vocabulary list, text copied from a website or document, or two columns copied from a spreadsheet. The same review screen as PDFs follows, so nothing is saved until you check it.
+- Formats: **Auto-detect** (the same rules as PDFs), **Tab** (spreadsheets and Quizlet exports; a third column becomes the example), **Comma/CSV** (quoted fields can contain commas), **Custom separator**, and **Term on one line, definition below** (blank line between cards). A live preview shows what was found.
+- **Paste from clipboard** button, **Open .txt or .csv** button, and dropping or choosing a .txt/.csv file on the Upload tab. On a computer, pressing Ctrl+V (Cmd+V) anywhere on the Upload page pastes copied text, or processes a copied PDF file.
+- The paste box is kept if the page reloads (phones often reload a tab after you switch apps to copy something).
+
 **Study sets**
 - Create, edit, rename, duplicate, and delete sets; add and delete cards; paste terms (tab, colon, or dash separated).
+- **Copy terms** copies a whole set to the clipboard as tab-separated lines, ready to paste into a spreadsheet, Quizlet, Anki, or the Paste text tab.
 - Title, class or subject, description, optional examples, accepted alternate answers, source page, and starred status per card.
 - Search within a set; filter starred or difficult cards; sort A to Z, weakest first, or shuffled.
 - Export a set as JSON or CSV; import JSON sets.
 - Open the stored source PDF at a card's page (when you keep a copy of the PDF).
 
 **Study modes** (full-screen, distraction-free layout)
-- **Flashcards:** flip with a click or Space, previous/next, keyboard shortcuts, shuffle, term or definition first, Know it / Still learning, repeat still-learning cards, starred-only, and resume where you left off.
+- **Flashcards:** flip with a tap, click, or Space; on phones, swipe right for Know it and left for Still learning; previous/next, keyboard shortcuts, shuffle, term or definition first, Know it / Still learning, repeat still-learning cards, starred-only, and resume where you left off.
 - **Multiple choice:** definition-to-term and term-to-definition questions with four options (fewer for small sets), distractors taken only from other cards, exactly one correct answer, instant feedback with explanation, score and percentage, missed-question review, retry missed, question count, and all or difficult cards.
 - **Written recall:** type the term or the definition; Enter to submit; case, spacing, and punctuation are ignored; stored alternates accepted; likely typos and partial definitions are marked "close" and you decide; you can override any grade.
 - **Match:** pair terms with definitions in rounds of 4, 6, or 8; mistakes and time are tracked; best times are remembered.
@@ -42,6 +49,8 @@ Once deployed, the site for this repository lives at **https://aguin005.github.i
 - Progress page with total sets, cards, cards studied, mastered, cards needing review, overall accuracy, current and longest streak, cards reviewed per day (7 or 30 days, chart or table), mastery by set, recent sessions, and the most frequently missed terms. Every number is computed from your saved activity.
 
 **Interface:** sidebar on desktop, bottom navigation on phones, light/dark/system theme, global search (press `/`), accessible dialogs, toasts, keyboard support, and reduced-motion support.
+
+**On phones:** swipe gestures on flashcards; text fields use 16px text so iPhone Safari does not zoom in when you type; tap targets of about 40px or more; a sticky Save bar on the review screen; notifications at the top so they never cover study buttons; tap-friendly wording instead of keyboard hints; support for notched screens; and an installable home screen app (web app manifest and icons). **Settings → Install on your phone** has an Install button where the browser offers one (Chrome and Edge on Android) and the Add to Home Screen steps for iPhone.
 
 ## Privacy and storage
 
@@ -115,8 +124,9 @@ The app uses hash-based URLs (for example `/Flashcards/#/sets`), so refreshing a
 
 ## Testing
 
-- **Unit tests** (`tests/unit`): vocabulary extraction rules, PDF line reconstruction, the real fixture PDFs run through PDF.js, quiz generation (unique options, exactly one correct answer, fewer options for small sets), written-answer grading, the Leitner schedule (no one-sitting mastery), matching rounds, statistics, and JSON/CSV export and import.
-- **End-to-end tests** (`tests/e2e`): upload and edit extracted vocabulary, save and reload, every PDF error case, password unlock, OCR, flashcards (flip, navigate, resume, repeat), quiz with retry, written recall with overrides, matching, spaced repetition with a simulated clock, progress statistics, set editing, duplicate, delete, JSON/CSV export and re-import, full backup/clear/restore, theme persistence, and a phone-sized layout check.
+- **Unit tests** (`tests/unit`): paste formats (auto, tab, CSV, custom, blocks), vocabulary extraction rules, PDF line reconstruction, the real fixture PDFs run through PDF.js, quiz generation (unique options, exactly one correct answer, fewer options for small sets), written-answer grading, the Leitner schedule (no one-sitting mastery), matching rounds, statistics, and JSON/CSV export and import.
+- **End-to-end tests** (`tests/e2e`): paste import in every format (clipboard button, .csv file, Ctrl+V), Copy terms, upload and edit extracted vocabulary, save and reload, every PDF error case, password unlock, OCR, flashcards (flip, navigate, resume, repeat), quiz with retry, written recall with overrides, matching, spaced repetition with a simulated clock, progress statistics, set editing, duplicate, delete, JSON/CSV export and re-import, full backup/clear/restore, theme persistence, and on a phone-sized screen: navigation without sideways scrolling, flashcard swipes, 16px text fields, the sticky Save bar, and the install manifest and icons.
+- App icons in `public/icons` are generated with `node scripts/make-icons.mjs`.
 - Test PDFs live in `tests/fixtures`. Regenerate them with `node scripts/make-fixtures.mjs`, `python3 scripts/encrypt-fixture.py` (needs `pip install pypdf`), and `node scripts/make-scanned-fixture.mjs`.
 
 ## Project structure
@@ -125,7 +135,7 @@ The app uses hash-based URLs (for example `/Flashcards/#/sets`), so refreshing a
 src/
   components/      layout (sidebar, mobile nav, focus layout, search) and UI primitives
   features/
-    pdf-import/    dropzone, review rows, OCR
+    pdf-import/    dropzone, paste panel, review rows, OCR
     flashcards/  quiz/  written/  matching/   study modes
     progress/      activity chart
     sets/          JSON/CSV transfer helpers
@@ -133,11 +143,13 @@ src/
   hooks/           study session recording
   lib/
     pdf-parser.ts            PDF.js loading, error mapping, line reconstruction
+    paste-parser.ts          pasted text formats (auto, tab, CSV, custom, blocks)
     vocabulary-extractor.ts  term/definition detection, cleanup, flags
     spaced-repetition.ts     Leitner boxes and mastery levels
     quiz.ts  grading.ts  matching.ts  stats.ts  export.ts
     db.ts                    IndexedDB (with in-memory fallback)
     storage.ts               localStorage preferences
+    install.ts               add-to-home-screen support
   pages/           one file per route
   state/           app data provider (sets, progress, sessions)
   types/
@@ -158,5 +170,7 @@ scripts/           asset copy and fixture generation
 - Bold or italic formatting is not used as a signal (PDF.js text extraction does not expose it reliably).
 - OCR is optional, English only, and slower; accuracy depends on scan quality. Results are flagged for review.
 - Written-answer grading is local and rule-based. Long definitions are rarely an exact match, so they are often marked "close" for you to judge.
+- Word (.docx) and Google Docs files cannot be opened directly. Copy their text and paste it, or save the document as a PDF and upload that.
+- On iPhone and iPad, a home screen app keeps its own storage, separate from Safari. Export a backup in Safari and import it in the app to move existing sets.
 - Data lives in one browser on one device. There is no sync; move data between devices with Export all data and Import backup. Stored PDF files are not included in backups.
 - There is no offline mode (no service worker), so the site needs a connection to open. Your data itself never leaves the browser.

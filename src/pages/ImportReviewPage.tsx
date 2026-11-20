@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import type { ExtractedEntry, PdfImport } from '../types';
 import { getImport, openStoredPdf, saveImport } from '../lib/imports';
-import { normalizeText, errorMessage, pluralize, uid } from '../lib/utils';
+import { cn, normalizeText, errorMessage, pluralize, uid } from '../lib/utils';
 import { useAppData } from '../state/AppData';
 import { Button, buttonClass } from '../components/ui/Button';
 import { Badge, EmptyState, Input, Label, PageHeader, Panel, Segmented, Select, Spinner, Textarea } from '../components/ui/primitives';
@@ -27,9 +27,12 @@ function needsReview(e: ExtractedEntry): boolean {
   return e.confidence !== 'high' || e.flags.length > 0 || !e.definition.trim();
 }
 
+const PASTED_NAME = 'Pasted text';
+
 function titleFromFileName(name: string): string {
+  if (name === PASTED_NAME) return 'Pasted terms';
   return name
-    .replace(/\.pdf$/i, '')
+    .replace(/\.(pdf|txt|csv|tsv|md)$/i, '')
     .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -57,6 +60,17 @@ export default function ImportReviewPage() {
   const [validation, setValidation] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const dirty = useRef(false);
+  const savePanelRef = useRef<HTMLDivElement>(null);
+  const [savePanelVisible, setSavePanelVisible] = useState(true);
+
+  // A sticky Save bar appears while the Save panel is scrolled out of view (long lists, phones).
+  useEffect(() => {
+    const el = savePanelRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([entry]) => setSavePanelVisible(entry.isIntersecting), { threshold: 0.2 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [record]);
 
   useEffect(() => {
     let alive = true;
@@ -67,7 +81,7 @@ export default function ImportReviewPage() {
         if (r) {
           setEntries(r.entries);
           setTitle(titleFromFileName(r.fileName));
-          setDescription(`Imported from ${r.fileName}`);
+          setDescription(r.fileName === PASTED_NAME ? 'Made from pasted text' : `Imported from ${r.fileName}`);
         }
       })
       .catch(() => alive && setRecord(null));
@@ -201,22 +215,27 @@ export default function ImportReviewPage() {
     setEntries((list) => list.filter((e) => !e.selected));
   };
 
+  const showValidation = (message: string) => {
+    setValidation(message);
+    savePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   const save = async () => {
     if (!record) return;
     const incomplete = selected.filter((e) => !e.term.trim() || !e.definition.trim());
     if (selected.length === 0) {
-      setValidation('Select at least one entry to import.');
+      showValidation('Select at least one entry to import.');
       return;
     }
     if (incomplete.length > 0) {
-      setValidation(
+      showValidation(
         `${pluralize(incomplete.length, 'selected entry is', 'selected entries are')} missing a term or definition. Fill them in or deselect them.`,
       );
       setFilter('incomplete');
       return;
     }
     if (destination === 'new' && !title.trim()) {
-      setValidation('Give the new study set a title.');
+      showValidation('Give the new study set a title.');
       return;
     }
     setSaving(true);
@@ -235,7 +254,12 @@ export default function ImportReviewPage() {
           subject,
           description,
           cards,
-          source: { fileName: record.fileName, importId: record.id, pageCount: record.pageCount },
+          source: {
+            fileName: record.fileName,
+            importId: record.id,
+            pageCount: record.kind === 'text' ? undefined : record.pageCount,
+            kind: record.kind,
+          },
         });
         setId = set.id;
       } else {
@@ -281,14 +305,15 @@ export default function ImportReviewPage() {
   }
 
   const { stats } = record;
-  const pagesWithoutText = stats.pageCount - stats.pagesWithText;
+  const isText = record.kind === 'text';
+  const pagesWithoutText = isText ? 0 : stats.pageCount - stats.pagesWithText;
   const pageText = record.pages.find((p) => p.page === textPage);
 
   return (
     <div>
       <Link
-        to="/upload"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+        to={isText ? '/upload?mode=paste' : '/upload'}
+        className="mb-2 inline-flex items-center gap-1.5 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
       >
         <ArrowLeft className="size-4" /> Upload
       </Link>
@@ -296,8 +321,8 @@ export default function ImportReviewPage() {
         title="Review extracted vocabulary"
         description={
           <>
-            <span className="font-medium text-slate-800 dark:text-slate-200">{record.fileName}</span> ·{' '}
-            {pluralize(record.pageCount, 'page')}
+            <span className="font-medium text-slate-800 dark:text-slate-200">{record.fileName}</span>
+            {!isText && ` · ${pluralize(record.pageCount, 'page')}`}
             {record.usedOcr && ' · read with OCR'}
           </>
         }
@@ -345,7 +370,11 @@ export default function ImportReviewPage() {
         <EmptyState
           icon={<Search className="size-6" />}
           title="No vocabulary was detected"
-          description="The PDF has text, but no term and definition patterns were recognized. Check the extracted text below, then add entries manually."
+          description={
+            isText
+              ? 'No term and definition patterns were recognized in the text. Go back and try another format, or add entries manually.'
+              : 'The PDF has text, but no term and definition patterns were recognized. Check the extracted text below, then add entries manually.'
+          }
           actions={
             <Button icon={<Plus className="size-4" />} onClick={addEntry}>
               Add an entry
@@ -432,7 +461,7 @@ export default function ImportReviewPage() {
         </Panel>
       )}
 
-      <Panel className="mt-6 p-5">
+      <Panel className="mt-6 scroll-mt-24 p-5" ref={savePanelRef}>
         <h2 className="text-base font-semibold text-slate-900 dark:text-white">Save as a study set</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div>
@@ -496,16 +525,20 @@ export default function ImportReviewPage() {
           className="flex w-full items-center justify-between p-5 text-left"
         >
           <span>
-            <span className="block text-base font-semibold text-slate-900 dark:text-white">Extracted text</span>
+            <span className="block text-base font-semibold text-slate-900 dark:text-white">
+              {isText ? 'Original text' : 'Extracted text'}
+            </span>
             <span className="text-sm text-slate-500 dark:text-slate-400">
-              The cleaned page-by-page text. Copy from here to add anything that was missed.
+              {isText
+                ? 'The text as it was pasted. Copy from here to add anything that was missed.'
+                : 'The cleaned page-by-page text. Copy from here to add anything that was missed.'}
             </span>
           </span>
           <span className="text-sm font-medium text-brand-700 dark:text-brand-300">{showText ? 'Hide' : 'Show'}</span>
         </button>
         {showText && (
           <div className="border-t border-slate-100 p-5 dark:border-slate-800">
-            <div className="mb-3 flex items-center gap-2">
+            <div className={cn('mb-3 flex items-center gap-2', record.pages.length <= 1 && 'hidden')}>
               <Label htmlFor="text-page">Page</Label>
               <Select
                 id="text-page"
@@ -526,6 +559,19 @@ export default function ImportReviewPage() {
           </div>
         )}
       </Panel>
+
+      {entries.length > 0 && !savePanelVisible && (
+        <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 mt-4 animate-fade-in lg:bottom-4">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
+            <span className="pl-1 text-sm text-slate-600 dark:text-slate-300">
+              <strong className="text-slate-900 dark:text-white">{selected.length}</strong> of {entries.length} selected
+            </span>
+            <Button onClick={save} loading={saving} icon={<Save className="size-4" />} data-testid="save-set-sticky">
+              Save {pluralize(selected.length, 'card')}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

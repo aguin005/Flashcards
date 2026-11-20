@@ -253,7 +253,7 @@ export default function Quiz({ cards, pool: distractorPool, setIds, isReview, ba
       </Panel>
 
       <div className="mt-4 flex items-center justify-between gap-3">
-        <p className="hidden text-xs text-slate-500 sm:block dark:text-slate-400">
+        <p className="hidden text-xs text-slate-500 pointer-fine:block dark:text-slate-400">
           <Kbd>1</Kbd>–<Kbd>{current.options.length}</Kbd> to answer, <Kbd>Enter</Kbd> to continue
         </p>
         <Button onClick={next} disabled={!answer} className="ml-auto" data-testid="quiz-next">

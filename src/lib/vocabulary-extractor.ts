@@ -400,11 +400,15 @@ export function extractVocabulary(rawPages: ParsedPage[], opts: { ocr?: boolean 
     // 2. Mid-sentence continuation: the previous line did not finish a sentence and this one
     //    starts lowercase. If the previous line ended short of the margin, a line that reads
     //    as its own "term: definition" entry starts a new entry instead.
+    // Rows of a table only continue in the definition column.
+    const inDefinitionColumn =
+      current?.defX == null || Math.abs(line.x - current.defX) <= Math.max(line.fontSize, 8) * 1.5;
     if (
       current &&
       gapOk &&
       !bulleted &&
       line.cells.length < 2 &&
+      inDefinitionColumn &&
       lastPart &&
       !endsSentence(lastPart) &&
       startsLowercase(text) &&
@@ -530,15 +534,11 @@ export function extractVocabulary(rawPages: ParsedPage[], opts: { ocr?: boolean 
     .sort((a, b) => (a.e.page ?? 0) - (b.e.page ?? 0) || a.idx - b.idx)
     .map((x) => x.e);
 
-  const { entries: deduped, removed: duplicatesRemoved } = dedupeEntries(ordered);
   const pageTexts: PageText[] = pages.map((p) => ({
     page: p.page,
     text: p.lines.map((l) => l.cells.map((c) => c.text).join('    ')).join('\n'),
   }));
-  fillMissingDefinitions(deduped, pageTexts);
-
-  if (opts.ocr) deduped.forEach((e) => addFlag(e, 'ocr'));
-  deduped.forEach(finalizeSelection);
+  const { entries: deduped, duplicatesRemoved } = finishEntries(ordered, pageTexts, opts);
 
   return {
     entries: deduped,
@@ -553,6 +553,23 @@ export function extractVocabulary(rawPages: ParsedPage[], opts: { ocr?: boolean 
       flagged: deduped.filter((e) => e.flags.length > 0).length,
     },
   };
+}
+
+/**
+ * Clean-up shared by every source (PDF, OCR, pasted text): merge duplicates,
+ * look for definitions of terms listed without one, then set flags and the
+ * default selection.
+ */
+export function finishEntries(
+  entries: ExtractedEntry[],
+  pages: PageText[],
+  opts: { ocr?: boolean } = {},
+): { entries: ExtractedEntry[]; duplicatesRemoved: number } {
+  const { entries: deduped, removed } = dedupeEntries(entries);
+  fillMissingDefinitions(deduped, pages);
+  if (opts.ocr) deduped.forEach((e) => addFlag(e, 'ocr'));
+  deduped.forEach(finalizeSelection);
+  return { entries: deduped, duplicatesRemoved: removed };
 }
 
 function addFlag(e: ExtractedEntry, flag: EntryFlag) {
@@ -747,7 +764,7 @@ export function fillMissingDefinitions(entries: ExtractedEntry[], pages: PageTex
 // ---------- Plain text (paste) ----------
 
 /** Run the same detection on pasted text. Tabs become table columns; blank lines become paragraph breaks. */
-export function extractFromPlainText(text: string): ExtractedEntry[] {
+export function extractPlainText(text: string): ExtractionResult {
   const lines: TextLine[] = [];
   let y = 10_000;
   for (const raw of text.replace(/\r\n?/g, '\n').split('\n')) {
@@ -767,7 +784,12 @@ export function extractFromPlainText(text: string): ExtractedEntry[] {
     y -= 14;
   }
   const result = extractVocabulary([{ page: 1, width: 0, height: 0, lines, charCount: text.length }]);
-  return result.entries.map((e) => ({ ...e, page: null }));
+  // Pasted text has no pages: drop the page number and keep the text exactly as pasted.
+  return { ...result, entries: result.entries.map((e) => ({ ...e, page: null })), pages: [{ page: 1, text }] };
+}
+
+export function extractFromPlainText(text: string): ExtractedEntry[] {
+  return extractPlainText(text).entries;
 }
 
 export const FLAG_LABELS: Record<EntryFlag, { label: string; description: string }> = {

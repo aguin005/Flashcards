@@ -104,7 +104,7 @@ export function CountPicker({ value, onChange, max }: { value: number; onChange:
             const n = parseInt(e.target.value, 10);
             if (Number.isFinite(n)) onChange(Math.max(1, Math.min(max, n)));
           }}
-          className="h-9 w-16 rounded-lg border border-slate-200 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+          className="h-10 w-16 rounded-lg border border-slate-200 bg-white px-2 text-base sm:h-9 sm:text-sm dark:border-slate-700 dark:bg-slate-900"
         />
       </div>
     </SetupRow>

@@ -97,6 +97,7 @@ function sanitizeSet(raw: unknown, now: number): { set: StudySet; skipped: numbe
   if (subject) set.subject = subject;
   if (isObj(raw.source) && str(raw.source.fileName)) {
     set.source = { fileName: str(raw.source.fileName, 300), pageCount: num(raw.source.pageCount) };
+    if (raw.source.kind === 'text') set.source.kind = 'text';
   }
   return { set, skipped: rawCards.length - cards.length };
 }

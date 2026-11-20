@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Database, Download, FileText, HardDrive, Keyboard, ShieldCheck, Trash, Upload } from 'lucide-react';
+import { Database, Download, FileText, HardDrive, Keyboard, ShieldCheck, Smartphone, Trash, Upload } from 'lucide-react';
+import { isAppleMobile, isStandalone, promptInstall, useCanInstall } from '../lib/install';
 import { useAppData, type ImportMode } from '../state/AppData';
 import { estimateStorage, isStoragePersisted, requestPersistentStorage } from '../lib/db';
 import { buildBackup, ImportError, parseImportText, type ParsedImport } from '../lib/export';
@@ -130,6 +131,8 @@ export default function SettingsPage() {
           </div>
         </Section>
 
+        <InstallSection />
+
         <Section title="Study preferences" icon={<Keyboard className="size-5" aria-hidden />}>
           <div className="grid gap-5 sm:grid-cols-3">
             <div>
@@ -217,7 +220,7 @@ export default function SettingsPage() {
                 {!persisted && (
                   <button
                     type="button"
-                    className="text-xs font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-300"
+                    className="-my-2.5 py-2.5 text-xs font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-300"
                     onClick={async () => {
                       const ok = await requestPersistentStorage();
                       setPersisted(ok);
@@ -334,5 +337,51 @@ export default function SettingsPage() {
         </ul>
       </Modal>
     </div>
+  );
+}
+
+function InstallSection() {
+  const canInstall = useCanInstall();
+  const { toast } = useToast();
+  const installed = isStandalone();
+  const apple = isAppleMobile();
+  return (
+    <Section
+      title="Install on your phone"
+      icon={<Smartphone className="size-5" aria-hidden />}
+      description="Add Recall to your home screen so it opens full screen like an app."
+    >
+      {installed ? (
+        <p className="text-sm text-slate-600 dark:text-slate-300" data-testid="install-status">
+          Recall is running as an installed app.
+        </p>
+      ) : (
+        <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+          {canInstall && (
+            <Button
+              icon={<Smartphone className="size-4" />}
+              onClick={async () => {
+                const ok = await promptInstall();
+                if (ok) toast({ kind: 'success', title: 'Recall was added to your device' });
+              }}
+            >
+              Install app
+            </Button>
+          )}
+          <ul className="space-y-1.5">
+            <li className={apple ? 'font-medium text-slate-800 dark:text-slate-100' : undefined}>
+              <strong>iPhone or iPad:</strong> open this site in Safari, tap the Share button, then <em>Add to Home Screen</em>.
+            </li>
+            <li>
+              <strong>Android:</strong> in Chrome, tap the ⋮ menu, then <em>Add to Home screen</em> or <em>Install app</em>.
+            </li>
+          </ul>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            On iPhone and iPad, the home screen app keeps its own storage, separate from Safari. If you already made sets in
+            Safari, export a backup there and import it in the app.
+          </p>
+        </div>
+      )}
+    </Section>
   );
 }

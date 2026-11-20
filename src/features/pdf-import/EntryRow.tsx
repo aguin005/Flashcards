@@ -35,8 +35,9 @@ export const EntryRow = memo(function EntryRow({
         !entry.selected && 'bg-slate-50/70 dark:bg-slate-950/30',
       )}
     >
-      <div className="row-span-4 pt-2.5 md:row-span-1">
+      <div className="row-span-4 -ml-1 pt-1.5 md:row-span-1 md:ml-0 md:pt-2.5">
         <Checkbox
+          className="m-1 md:m-0"
           checked={entry.selected}
           aria-label={`Import ${label}`}
           onChange={(e) => onChange(entry.id, { selected: e.target.checked })}
@@ -127,7 +128,7 @@ function DeleteButton({ label, onClick }: { label: string; onClick: () => void }
       type="button"
       onClick={onClick}
       aria-label={`Delete ${label}`}
-      className="inline-flex size-9 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
+      className="inline-flex size-11 items-center justify-center rounded-lg text-slate-400 sm:size-9 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
     >
       <Trash className="size-4" />
     </button>

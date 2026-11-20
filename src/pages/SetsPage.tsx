@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { FileUp, Library, Plus, Search, Upload } from 'lucide-react';
+import { ClipboardPaste, FileUp, Library, Plus, Search, Upload } from 'lucide-react';
 import { useAppData } from '../state/AppData';
 import { searchSets } from '../lib/search';
 import { lastStudiedBySet } from '../lib/stats';
@@ -67,6 +67,9 @@ export default function SetsPage() {
             <Button variant="secondary" icon={<Upload className="size-4" />} onClick={importJson} loading={importing}>
               Import JSON
             </Button>
+            <Link to="/upload?mode=paste" className={buttonClass('secondary')}>
+              <ClipboardPaste className="size-4" /> Paste text
+            </Link>
             <Link to="/upload" className={buttonClass('secondary')}>
               <FileUp className="size-4" /> From PDF
             </Link>
@@ -81,11 +84,14 @@ export default function SetsPage() {
         <EmptyState
           icon={<Library className="size-6" />}
           title="No study sets yet"
-          description="Upload a PDF to extract vocabulary, create a set by hand, or import a JSON file you exported earlier."
+          description="Upload a PDF or paste text to extract vocabulary, create a set by hand, or import a JSON file you exported earlier."
           actions={
             <>
               <Link to="/upload" className={buttonClass('primary')}>
                 <FileUp className="size-4" /> Upload a PDF
+              </Link>
+              <Link to="/upload?mode=paste" className={buttonClass('secondary')}>
+                <ClipboardPaste className="size-4" /> Paste text
               </Link>
               <Link to="/sets/new" className={buttonClass('secondary')}>
                 Create a set

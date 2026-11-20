@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -107,6 +107,12 @@ export default function Flashcards({ cards, setIds, isReview, persistKey, backTo
   const [showSettings, setShowSettings] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
 
+  // Swipe gestures: drag right for "Know it", left for "Still learning"; a tap flips.
+  const [dragX, setDragX] = useState(0);
+  const [flyOut, setFlyOut] = useState<'left' | 'right' | null>(null);
+  const gesture = useRef<{ id: number; x: number; y: number; dx: number; axis: 'x' | 'y' | null } | null>(null);
+  const suppressClick = useRef(false);
+
   useEffect(() => {
     if (persistKey && state.index > 0 && !state.finished) setResumed(true);
     // Only on mount: tells the user they picked up where they left off.
@@ -147,6 +153,19 @@ export default function Flashcards({ cards, setIds, isReview, persistKey, backTo
     },
     [current, record],
   );
+
+  const commitSwipe = (dir: 'left' | 'right') => {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setFlyOut(dir);
+    window.setTimeout(
+      () => {
+        mark(dir === 'right');
+        setFlyOut(null);
+        setDragX(0);
+      },
+      reduceMotion ? 0 : 180,
+    );
+  };
 
   const studyLearningAgain = () => {
     setFlipped(false);
@@ -290,66 +309,144 @@ export default function Flashcards({ cards, setIds, isReview, persistKey, backTo
       </div>
       <ProgressBar value={(state.index + 1) / total} size="sm" label="Card progress" />
 
-      <div className="flip-scene mt-5">
+      <div
+        className="relative mt-5 touch-pan-y select-none"
+        onPointerDown={(e) => {
+          suppressClick.current = false;
+          if (e.button !== 0 || flyOut) return;
+          gesture.current = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, axis: null };
+        }}
+        onPointerMove={(e) => {
+          const g = gesture.current;
+          if (!g || g.id !== e.pointerId) return;
+          const dx = e.clientX - g.x;
+          const dy = e.clientY - g.y;
+          if (!g.axis && Math.hypot(dx, dy) > 10) {
+            g.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+            if (g.axis === 'x') e.currentTarget.setPointerCapture(e.pointerId);
+          }
+          if (g.axis === 'x') {
+            g.dx = dx;
+            setDragX(dx);
+          }
+        }}
+        onPointerUp={(e) => {
+          const g = gesture.current;
+          gesture.current = null;
+          if (!g || g.id !== e.pointerId || g.axis !== 'x') return;
+          suppressClick.current = true;
+          const threshold = Math.min(110, e.currentTarget.clientWidth * 0.25);
+          if (g.dx > threshold) commitSwipe('right');
+          else if (g.dx < -threshold) commitSwipe('left');
+          else setDragX(0);
+        }}
+        onPointerCancel={() => {
+          gesture.current = null;
+          setDragX(0);
+        }}
+        data-testid="flashcard-swipe"
+      >
         <div
           key={current.id}
-          role="button"
-          tabIndex={0}
-          aria-label={flipped ? `Showing ${front === 'term' ? 'definition' : 'term'}. Press to flip back.` : 'Press to reveal the answer'}
-          onClick={() => setFlipped((f) => !f)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              setFlipped((f) => !f);
-            }
+          className="flip-scene relative"
+          style={{
+            transform: `translateX(${flyOut ? (flyOut === 'right' ? 1 : -1) * 120 : 0}vw) translateX(${flyOut ? 0 : dragX}px) rotate(${Math.max(-12, Math.min(12, (flyOut ? (flyOut === 'right' ? 400 : -400) : dragX) / 25))}deg)`,
+            transition: gesture.current?.axis === 'x' ? 'none' : 'transform 180ms ease-out',
           }}
-          data-testid="flashcard"
-          data-flipped={flipped}
-          className={cn('flip-inner relative grid min-h-[18rem] w-full cursor-pointer sm:min-h-[22rem]', flipped && 'is-flipped')}
         >
-          {[
-            { side: 'front', text: frontText, label: front === 'term' ? 'Term' : 'Definition' },
-            { side: 'back', text: backText, label: front === 'term' ? 'Definition' : 'Term' },
-          ].map((face) => (
-            <div
-              key={face.side}
-              aria-hidden={(face.side === 'back') !== flipped}
-              className={cn(
-                'flip-face col-start-1 row-start-1 flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10 dark:border-slate-800 dark:bg-slate-900',
-                face.side === 'back' && 'flip-back',
-              )}
-            >
-              <div className="flex items-start justify-between">
-                <span className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{face.label}</span>
-                <StarButton
-                  starred={starred}
-                  label={current.term}
-                  onToggle={() => void toggleStar(current.setId, current.id)}
-                  className="-mt-2 -mr-2"
-                />
-              </div>
-              <div className="flex flex-1 flex-col items-center justify-center py-4 text-center">
-                <p
-                  className={cn(
-                    'max-w-full font-medium break-words whitespace-pre-line text-slate-900 dark:text-white',
-                    textSize(face.text),
-                  )}
-                  data-testid={`flashcard-${face.side}`}
-                >
-                  {face.text}
-                </p>
-                {face.side === 'back' && front === 'term' && current.example && (
-                  <p className="mt-4 max-w-xl text-sm text-slate-500 italic dark:text-slate-400">{current.example}</p>
+          {dragX !== 0 && (
+            <div aria-hidden className="pointer-events-none absolute inset-x-4 top-4 z-10 flex">
+              <span
+                className={cn(
+                  'rounded-full px-3 py-1 text-sm font-semibold text-white shadow',
+                  dragX > 0 ? 'bg-emerald-600' : 'ml-auto bg-amber-500',
                 )}
-              </div>
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span className="truncate">{isReview ? current.setTitle : ''}</span>
-                <span>{face.side === 'back' && current.sourcePage ? `Page ${current.sourcePage}` : face.side === 'front' ? 'Click or press Space to flip' : ''}</span>
-              </div>
+                style={{ opacity: Math.min(1, Math.abs(dragX) / 90) }}
+              >
+                {dragX > 0 ? 'Know it' : 'Still learning'}
+              </span>
             </div>
-          ))}
+          )}
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={flipped ? `Showing ${front === 'term' ? 'definition' : 'term'}. Press to flip back.` : 'Press to reveal the answer'}
+            onClick={() => {
+              if (suppressClick.current) {
+                suppressClick.current = false;
+                return;
+              }
+              setFlipped((f) => !f);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                setFlipped((f) => !f);
+              }
+            }}
+            data-testid="flashcard"
+            data-flipped={flipped}
+            className={cn(
+              'flip-inner relative grid min-h-[18rem] w-full cursor-pointer touch-manipulation sm:min-h-[22rem]',
+              flipped && 'is-flipped',
+            )}
+          >
+            {[
+              { side: 'front', text: frontText, label: front === 'term' ? 'Term' : 'Definition' },
+              { side: 'back', text: backText, label: front === 'term' ? 'Definition' : 'Term' },
+            ].map((face) => (
+              <div
+                key={face.side}
+                aria-hidden={(face.side === 'back') !== flipped}
+                className={cn(
+                  'flip-face col-start-1 row-start-1 flex flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-10 dark:border-slate-800 dark:bg-slate-900',
+                  face.side === 'back' && 'flip-back',
+                  dragX > 40 && 'border-emerald-400 dark:border-emerald-600',
+                  dragX < -40 && 'border-amber-400 dark:border-amber-600',
+                )}
+              >
+                <div className="flex items-start justify-between">
+                  <span className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{face.label}</span>
+                  <StarButton
+                    starred={starred}
+                    label={current.term}
+                    onToggle={() => void toggleStar(current.setId, current.id)}
+                    className="-mt-2 -mr-2"
+                  />
+                </div>
+                <div className="flex flex-1 flex-col items-center justify-center py-4 text-center">
+                  <p
+                    className={cn(
+                      'max-w-full font-medium break-words whitespace-pre-line text-slate-900 dark:text-white',
+                      textSize(face.text),
+                    )}
+                    data-testid={`flashcard-${face.side}`}
+                  >
+                    {face.text}
+                  </p>
+                  {face.side === 'back' && front === 'term' && current.example && (
+                    <p className="mt-4 max-w-xl text-sm text-slate-500 italic dark:text-slate-400">{current.example}</p>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
+                  <span className="truncate">{isReview ? current.setTitle : ''}</span>
+                  {face.side === 'back' && current.sourcePage ? (
+                    <span>Page {current.sourcePage}</span>
+                  ) : face.side === 'front' ? (
+                    <span>
+                      <span className="pointer-coarse:hidden">Click or press Space to flip</span>
+                      <span className="hidden pointer-coarse:inline">Tap to flip</span>
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
+      <p className="mt-2 hidden text-center text-xs text-slate-500 pointer-coarse:block dark:text-slate-400">
+        Swipe right if you know it, left if you are still learning.
+      </p>
 
       <div className="mt-5 grid grid-cols-2 gap-3">
         <Button
@@ -391,9 +488,11 @@ export default function Flashcards({ cards, setIds, isReview, persistKey, backTo
           <Button variant="ghost" size="icon" aria-label="Flashcard options" aria-expanded={showSettings} onClick={() => setShowSettings((s) => !s)}>
             <Settings2 className="size-5" />
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Keyboard shortcuts" aria-expanded={showKeys} onClick={() => setShowKeys((s) => !s)} className="hidden sm:inline-flex">
-            <Keyboard className="size-5" />
-          </Button>
+          <span className="hidden pointer-fine:inline-flex">
+            <Button variant="ghost" size="icon" aria-label="Keyboard shortcuts" aria-expanded={showKeys} onClick={() => setShowKeys((s) => !s)}>
+              <Keyboard className="size-5" />
+            </Button>
+          </span>
         </div>
         <Button variant="ghost" onClick={() => go(1)} aria-label="Next card">
           <span className="hidden sm:inline">Next</span> <ArrowRight className="size-4" />

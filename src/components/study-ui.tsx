@@ -52,7 +52,7 @@ export function StarButton({
       aria-label={starred ? `Unstar ${label}` : `Star ${label}`}
       title={starred ? 'Starred as difficult' : 'Star as difficult'}
       className={cn(
-        'inline-flex size-9 items-center justify-center rounded-lg transition-colors',
+        'inline-flex size-11 items-center justify-center rounded-lg transition-colors sm:size-9',
         starred
           ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10'
           : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200',

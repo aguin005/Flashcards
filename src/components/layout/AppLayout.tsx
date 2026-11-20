@@ -107,9 +107,9 @@ function MobileNav() {
 
 function TopBar() {
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-slate-50/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-slate-50/90 pt-[env(safe-area-inset-top)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6 lg:px-8">
-        <Link to="/" className="shrink-0 rounded-lg lg:hidden" aria-label="Recall home">
+        <Link to="/" className="-m-1 shrink-0 rounded-lg p-1 lg:hidden" aria-label="Recall home">
           <Logo compact />
         </Link>
         <div className="min-w-0 flex-1">

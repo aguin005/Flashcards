@@ -210,6 +210,8 @@ export default function Written({ cards, setIds, isReview, backTo }: StudyModePr
             }}
             autoComplete="off"
             autoCapitalize="off"
+            autoCorrect="off"
+            enterKeyHint={attempt ? 'next' : 'done'}
             spellCheck={false}
             data-testid="written-input"
             className={cn(
@@ -291,7 +293,7 @@ export default function Written({ cards, setIds, isReview, backTo }: StudyModePr
 
       {attempt && (
         <div className="mt-4 flex items-center justify-between gap-3">
-          <p className="hidden text-xs text-slate-500 sm:block dark:text-slate-400">
+          <p className="hidden text-xs text-slate-500 pointer-fine:block dark:text-slate-400">
             <Kbd>Enter</Kbd> to continue
           </p>
           <Button ref={continueRef} onClick={next} disabled={!decided} className="ml-auto" data-testid="written-next">

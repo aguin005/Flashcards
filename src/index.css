@@ -76,6 +76,17 @@
   [role='button']:not([aria-disabled='true']) {
     cursor: pointer;
   }
+  /* No grey flash on tap, and no double-tap zoom delay on controls. */
+  a,
+  button,
+  [role='button'],
+  input,
+  select,
+  textarea,
+  label {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
 }
 
 /* 3D flip card */

@@ -4,6 +4,7 @@ import {
   ArrowRight,
   CalendarClock,
   CalendarCheck,
+  ClipboardPaste,
   FileUp,
   Flame,
   Layers,
@@ -43,7 +44,7 @@ function Welcome() {
         <p className="text-sm font-medium text-brand-100">Welcome to Recall</p>
         <h1 className="mt-2 max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">Turn your PDFs into flashcards you will remember.</h1>
         <p className="mt-3 max-w-xl text-brand-100">
-          Upload class notes or a study guide, review the terms and definitions found in it, then study with flashcards,
+          Upload class notes or a study guide, or paste text, review the terms and definitions found, then study with flashcards,
           quizzes, written recall, and matching. Spaced repetition brings back what you are about to forget.
         </p>
         <div className="mt-6 flex flex-wrap gap-2">
@@ -52,6 +53,12 @@ function Welcome() {
             className="inline-flex h-12 items-center gap-2 rounded-xl bg-white px-5 font-medium text-brand-800 shadow-sm hover:bg-brand-50"
           >
             <FileUp className="size-5" /> Upload a PDF
+          </Link>
+          <Link
+            to="/upload?mode=paste"
+            className="inline-flex h-12 items-center gap-2 rounded-xl px-5 font-medium text-white ring-1 ring-white/30 hover:bg-white/10"
+          >
+            <ClipboardPaste className="size-5" /> Paste text
           </Link>
           <Link
             to="/sets/new"
@@ -185,7 +192,7 @@ export function DashboardPage() {
             {streak.current > 0 ? `${pluralize(streak.current, 'day')} streak` : 'No streak yet'}
             {!streak.studiedToday && streak.current > 0 && <span className="text-slate-400">· study today to keep it</span>}
           </p>
-          <Link to="/settings" className="mt-2 inline-block text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">
+          <Link to="/settings" className="-mb-2 inline-block py-2.5 text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">
             Change daily goal
           </Link>
         </Panel>
@@ -214,7 +221,7 @@ export function DashboardPage() {
               Recently studied
             </h2>
             {otherSets.length === 0 && (
-              <Link to="/sets" className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">
+              <Link to="/sets" className="-my-2 py-2 text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">
                 View all sets
               </Link>
             )}
@@ -233,7 +240,7 @@ export function DashboardPage() {
             <h2 id="sets-heading" className="text-base font-semibold text-slate-900 dark:text-white">
               {recent.length > 0 ? 'Your other study sets' : 'Your study sets'}
             </h2>
-            <Link to="/sets" className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">
+            <Link to="/sets" className="-my-2 py-2 text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">
               View all {sets.length}
             </Link>
           </div>
