@@ -14,10 +14,14 @@ export interface Card {
   createdAt: number;
 }
 
+export type ImportKind = 'pdf' | 'text';
+
 export interface StudySetSource {
   fileName: string;
   importId?: ID;
   pageCount?: number;
+  /** "text" for sets made from pasted text or a .txt/.csv file. Missing means PDF. */
+  kind?: ImportKind;
 }
 
 export interface StudySet {
@@ -150,8 +154,10 @@ export interface ExtractionStats {
   flagged: number;
 }
 
+/** A review draft made from a PDF, or from pasted text (kind "text"). */
 export interface PdfImport {
   id: ID;
+  kind?: ImportKind;
   fileName: string;
   fileSize: number;
   pageCount: number;

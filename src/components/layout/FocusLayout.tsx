@@ -11,6 +11,9 @@ const MODES = [
   { mode: 'match', label: 'Match', icon: Puzzle },
 ];
 
+/** iPhone Safari cannot make a page full screen; hide the control there. */
+const canFullscreen = typeof document !== 'undefined' && Boolean(document.fullscreenEnabled);
+
 export function toggleFullscreen() {
   if (document.fullscreenElement) void document.exitFullscreen?.();
   else void document.documentElement.requestFullscreen?.().catch(() => undefined);
@@ -29,7 +32,7 @@ export function FocusLayout({ title, backTo, children }: { title: string; backTo
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50 dark:bg-slate-950">
-      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-slate-50/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-slate-50/90 pt-[env(safe-area-inset-top)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-3 sm:px-6">
           <Link
             to={backTo}
@@ -57,6 +60,7 @@ export function FocusLayout({ title, backTo, children }: { title: string; backTo
               </NavLink>
             ))}
           </nav>
+          {canFullscreen && (
           <button
             type="button"
             onClick={toggleFullscreen}
@@ -66,6 +70,7 @@ export function FocusLayout({ title, backTo, children }: { title: string; backTo
           >
             {isFullscreen ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
           </button>
+          )}
           <ThemeToggle />
         </div>
         <nav aria-label="Study modes" className="flex justify-center gap-1 px-3 pb-2 sm:hidden">
@@ -75,7 +80,7 @@ export function FocusLayout({ title, backTo, children }: { title: string; backTo
               to={`/study/${mode}${search}`}
               className={({ isActive }) =>
                 cn(
-                  'flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium',
+                  'flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-xs font-medium',
                   isActive ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400',
                 )
               }
@@ -85,7 +90,7 @@ export function FocusLayout({ title, backTo, children }: { title: string; backTo
           ))}
         </nav>
       </header>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:py-10">{children}</main>
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:py-10">{children}</main>
     </div>
   );
 }

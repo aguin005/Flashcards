@@ -4,7 +4,9 @@ import {
   ArrowLeft,
   BookOpen,
   CalendarClock,
+  ClipboardPaste,
   Copy,
+  CopyPlus,
   Download,
   Ellipsis,
   ExternalLink,
@@ -22,7 +24,8 @@ import { useAppData } from '../state/AppData';
 import { isDifficult, isDue, masteryOf, MASTERY_LEVELS } from '../lib/spaced-repetition';
 import { lastStudiedBySet, setMasteryCounts } from '../lib/stats';
 import { getFile, openStoredPdf } from '../lib/imports';
-import { cn, errorMessage, formatDate, formatRelative, normalizeText, pluralize, shuffle } from '../lib/utils';
+import { cn, copyText, errorMessage, formatDate, formatRelative, normalizeText, pluralize, shuffle } from '../lib/utils';
+import { cardsToTsv } from '../lib/paste-parser';
 import { Button, buttonClass } from '../components/ui/Button';
 import { EmptyState, Input, Panel, Segmented, Select } from '../components/ui/primitives';
 import { Menu } from '../components/ui/Menu';
@@ -153,7 +156,7 @@ export default function SetDetailPage() {
     <div>
       <Link
         to="/sets"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+        className="mb-2 inline-flex items-center gap-1.5 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
       >
         <ArrowLeft className="size-4" /> My Study Sets
       </Link>
@@ -169,12 +172,19 @@ export default function SetDetailPage() {
           </p>
           {set.source && (
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
-              <FileText className="size-4" aria-hidden /> From {set.source.fileName}
+              {set.source.kind === 'text' ? (
+                <ClipboardPaste className="size-4" aria-hidden />
+              ) : (
+                <FileText className="size-4" aria-hidden />
+              )}
+              {set.source.kind === 'text' && set.source.fileName === 'Pasted text'
+                ? 'From pasted text'
+                : `From ${set.source.fileName}`}
               {hasPdf && (
                 <button
                   type="button"
                   onClick={() => importId && openStoredPdf(importId)}
-                  className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline dark:text-brand-300"
+                  className="-my-2 inline-flex items-center gap-1 py-2 font-medium text-brand-700 hover:underline dark:text-brand-300"
                 >
                   Open PDF <ExternalLink className="size-3.5" aria-hidden />
                 </button>
@@ -192,13 +202,29 @@ export default function SetDetailPage() {
             items={[
               {
                 label: 'Duplicate',
-                icon: <Copy />,
+                icon: <CopyPlus />,
                 onSelect: async () => {
                   const copy = await duplicateSet(set.id);
                   if (copy) {
                     toast({ kind: 'success', title: 'Set duplicated' });
                     navigate(`/sets/${copy.id}`);
                   }
+                },
+              },
+              {
+                label: 'Copy terms',
+                icon: <Copy />,
+                onSelect: async () => {
+                  const ok = await copyText(cardsToTsv(set.cards));
+                  toast(
+                    ok
+                      ? {
+                          kind: 'success',
+                          title: `Copied ${pluralize(set.cards.length, 'card')}`,
+                          description: 'One card per line, term and definition separated by a tab. Paste into a spreadsheet, Quizlet, Anki, or the Paste text tab.',
+                        }
+                      : { kind: 'error', title: 'Could not copy', description: 'Your browser blocked clipboard access. Try Export CSV instead.' },
+                  );
                 },
               },
               { label: 'Export JSON', icon: <Download />, onSelect: () => exportSetJson(set, setProgress) },
@@ -333,7 +359,7 @@ export default function SetDetailPage() {
                               <button
                                 type="button"
                                 onClick={() => openPage(c)}
-                                className="font-medium text-brand-700 hover:underline dark:text-brand-300"
+                                className="-my-2.5 py-2.5 font-medium text-brand-700 hover:underline dark:text-brand-300"
                                 title="Open the source PDF at this page"
                               >
                                 Page {c.sourcePage}

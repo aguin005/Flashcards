@@ -171,7 +171,7 @@ export default function SetEditorPage() {
     <div>
       <Link
         to={backTo}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+        className="mb-2 inline-flex items-center gap-1.5 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
       >
         <ArrowLeft className="size-4" /> {existing ? existing.title : 'My Study Sets'}
       </Link>
@@ -313,7 +313,7 @@ const EditorRow = memo(function EditorRow({
             type="button"
             onClick={() => setShowMore((s) => !s)}
             aria-expanded={showMore}
-            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-2.5 text-xs font-medium text-slate-500 hover:bg-slate-100 sm:py-1 dark:hover:bg-slate-800"
           >
             Example and options <ChevronDown className={cn('size-3.5 transition-transform', showMore && 'rotate-180')} />
           </button>
@@ -321,7 +321,7 @@ const EditorRow = memo(function EditorRow({
             type="button"
             onClick={() => onRemove(row.key)}
             aria-label={`Delete card ${index + 1}`}
-            className="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
+            className="inline-flex size-10 items-center justify-center rounded-lg text-slate-400 sm:size-8 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
           >
             <Trash className="size-4" />
           </button>

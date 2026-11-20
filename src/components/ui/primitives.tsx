@@ -9,9 +9,10 @@ import type {
 import { LoaderCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-export function Panel({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+export function Panel({ className, ref, ...rest }: HTMLAttributes<HTMLDivElement> & { ref?: Ref<HTMLDivElement> }) {
   return (
     <div
+      ref={ref}
       className={cn(
         'rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900',
         className,
@@ -82,7 +83,7 @@ export function Badge({
 }
 
 const fieldBase =
-  'w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-xs transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500';
+  'w-full rounded-xl border border-slate-200 bg-white px-3 text-base sm:text-sm text-slate-900 placeholder:text-slate-400 shadow-xs transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500';
 
 export function Input({
   className,
@@ -125,7 +126,7 @@ export function Checkbox({
     <input
       type="checkbox"
       className={cn(
-        'size-4 shrink-0 rounded border-slate-300 accent-brand-600 dark:border-slate-600',
+        'size-5 shrink-0 rounded border-slate-300 accent-brand-600 sm:size-4 dark:border-slate-600',
         className,
       )}
       {...rest}
@@ -274,7 +275,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(o.value)}
           className={cn(
             'rounded-lg font-medium transition-colors',
-            size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm',
+            size === 'sm' ? 'px-2.5 py-2.5 text-xs sm:py-1' : 'min-w-10 px-3 py-2 text-sm sm:min-w-0 sm:py-1.5',
             value === o.value
               ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-950 dark:text-white'
               : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
@@ -315,7 +316,7 @@ export function Switch({
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={cn(
-          'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors',
+          'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors after:absolute after:-inset-2.5 after:content-[""]',
           checked ? 'bg-brand-600' : 'bg-slate-300 dark:bg-slate-700',
         )}
       >

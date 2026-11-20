@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CircleAlert,
+  ClipboardPaste,
   FileText,
+  FileUp,
   Lock,
   ScanText,
   ShieldCheck,
@@ -10,21 +12,30 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { Dropzone } from '../features/pdf-import/Dropzone';
+import { PastePanel, type PasteState } from '../features/pdf-import/PastePanel';
 import { Button, buttonClass } from '../components/ui/Button';
-import { Badge, Input, PageHeader, Panel, ProgressBar, Switch } from '../components/ui/primitives';
+import { Badge, Input, PageHeader, Panel, ProgressBar, Segmented, Switch } from '../components/ui/primitives';
 import { useConfirm, useToast } from '../components/ui/feedback';
 import { parsePdf, PdfError, PDF_ERROR_TEXT, type PdfErrorCode } from '../lib/pdf-parser';
-import { extractVocabulary } from '../lib/vocabulary-extractor';
+import { extractVocabulary, type ExtractionResult } from '../lib/vocabulary-extractor';
+import { formatForFileName, isTextFile } from '../lib/paste-parser';
 import { deleteImport, listImports, saveFile, saveImport } from '../lib/imports';
-import { setPrefs, usePrefs } from '../lib/storage';
+import { LS_PREFIX, readJSON, removeKey, setPrefs, usePrefs, writeJSON } from '../lib/storage';
 import { errorMessage, formatBytes, formatRelative, pluralize, uid } from '../lib/utils';
 import type { ParsedPage, PdfImport } from '../types';
 import { useAppData } from '../state/AppData';
 import type { OcrProgress } from '../features/pdf-import/ocr';
+import { pickFile } from '../features/sets/transfer';
 
 const MAX_FILE_BYTES = 150 * 1024 * 1024;
 /** Fewer characters than this per page on average means the PDF is probably scanned images. */
 const MIN_CHARS_PER_PAGE = 25;
+
+const PASTE_DRAFT_KEY = `${LS_PREFIX}paste-draft`;
+const EMPTY_PASTE: PasteState = { text: '', format: 'auto', separator: '' };
+const MAX_TEXT_FILE_BYTES = 5 * 1024 * 1024;
+
+type Mode = 'pdf' | 'paste';
 
 type Stage =
   | { kind: 'idle' }
@@ -44,6 +55,26 @@ export default function UploadPage() {
   const [password, setPassword] = useState('');
   const [imports, setImports] = useState<PdfImport[] | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [params, setParams] = useSearchParams();
+  const mode: Mode = params.get('mode') === 'paste' ? 'paste' : 'pdf';
+  const setMode = useCallback(
+    (next: Mode) => {
+      setParams(next === 'paste' ? { mode: 'paste' } : {}, { replace: true });
+    },
+    [setParams],
+  );
+  // The paste box is kept in localStorage so switching apps on a phone (which can reload the tab) loses nothing.
+  const [paste, setPaste] = useState<PasteState>(() => ({ ...EMPTY_PASTE, ...readJSON<Partial<PasteState>>(PASTE_DRAFT_KEY, {}) }));
+  const [savingPaste, setSavingPaste] = useState(false);
+  const updatePaste = useCallback((patch: Partial<PasteState>) => setPaste((p) => ({ ...p, ...patch })), []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (paste.text.trim()) writeJSON(PASTE_DRAFT_KEY, paste);
+      else removeKey(PASTE_DRAFT_KEY);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [paste]);
 
   const refreshImports = () =>
     listImports()
@@ -56,14 +87,18 @@ export default function UploadPage() {
   }, []);
 
   // Clicking "Upload PDF" again (a new navigation to this page) starts over.
+  // Switching between the Upload and Paste tabs only changes the query string and keeps everything.
   const location = useLocation();
   const firstLocation = useRef(location.key);
+  const lastSearch = useRef(location.search);
   useEffect(() => {
-    if (location.key === firstLocation.current) return;
+    const tabSwitch = location.search !== lastSearch.current;
+    lastSearch.current = location.search;
+    if (location.key === firstLocation.current || tabSwitch) return;
     abortRef.current?.abort();
     setPassword('');
     setStage({ kind: 'idle' });
-  }, [location.key]);
+  }, [location.key, location.search]);
 
   const finish = async (file: File, pages: ParsedPage[], pageCount: number, usedOcr: boolean) => {
     setStage({ kind: 'detecting', file });
@@ -98,7 +133,75 @@ export default function UploadPage() {
     navigate(`/upload/${id}`);
   };
 
+  const finishText = async (result: ExtractionResult) => {
+    setSavingPaste(true);
+    try {
+      const now = Date.now();
+      const id = uid('imp');
+      await saveImport({
+        id,
+        kind: 'text',
+        fileName: paste.fileName ?? 'Pasted text',
+        fileSize: paste.text.length,
+        pageCount: 1,
+        createdAt: now,
+        updatedAt: now,
+        pages: result.pages,
+        entries: result.entries,
+        stats: result.stats,
+        hasFile: false,
+      });
+      removeKey(PASTE_DRAFT_KEY);
+      setPaste(EMPTY_PASTE);
+      navigate(`/upload/${id}`);
+    } catch (err) {
+      toast({ kind: 'error', title: 'Could not save the pasted text', description: errorMessage(err) });
+    } finally {
+      setSavingPaste(false);
+    }
+  };
+
+  const loadTextFile = async (file: File) => {
+    if (file.size > MAX_TEXT_FILE_BYTES) {
+      toast({ kind: 'error', title: 'That text file is too large', description: `Files up to ${formatBytes(MAX_TEXT_FILE_BYTES)} are supported.` });
+      return;
+    }
+    try {
+      const text = await file.text();
+      setPaste((p) => ({ ...p, text, fileName: file.name, format: formatForFileName(file.name) ?? p.format }));
+      setMode('paste');
+    } catch (err) {
+      toast({ kind: 'error', title: 'Could not read that file', description: errorMessage(err) });
+    }
+  };
+
+  const appendPastedText = (text: string) => {
+    setPaste((p) => ({ ...p, text: p.text.trim() ? `${p.text.replace(/\s+$/, '')}\n${text}` : text }));
+    setMode('paste');
+  };
+
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        toast({ title: 'Your clipboard has no text' });
+        return;
+      }
+      appendPastedText(text);
+    } catch {
+      toast({
+        kind: 'info',
+        title: 'The browser blocked clipboard access',
+        description: 'Tap and hold in the box, then choose Paste. On a computer, press Ctrl+V (Cmd+V on a Mac).',
+      });
+    }
+  };
+
   const processFile = async (file: File, pdfPassword?: string) => {
+    if (isTextFile(file)) {
+      await loadTextFile(file);
+      return;
+    }
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -179,20 +282,86 @@ export default function UploadPage() {
 
   const busy = stage.kind === 'reading' || stage.kind === 'extracting' || stage.kind === 'detecting' || stage.kind === 'ocr';
 
+  // Ctrl+V / Cmd+V anywhere on the page (outside a text field): a copied PDF or text file is
+  // processed, plain text goes to the paste box.
+  const pasteHandler = useRef<(e: ClipboardEvent) => void>(() => undefined);
+  pasteHandler.current = (e: ClipboardEvent) => {
+    const target = e.target instanceof Element ? e.target : null;
+    if (busy || target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+    const files = [...(e.clipboardData?.files ?? [])];
+    const file = files.find((f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf') || isTextFile(f));
+    if (file) {
+      e.preventDefault();
+      void processFile(file);
+      return;
+    }
+    const text = e.clipboardData?.getData('text/plain') ?? '';
+    if (text.trim()) {
+      e.preventDefault();
+      appendPastedText(text);
+    }
+  };
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => pasteHandler.current(e);
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, []);
+
+  const canReadClipboard = typeof navigator !== 'undefined' && typeof navigator.clipboard?.readText === 'function';
+
   return (
     <div>
       <PageHeader
         title="Upload PDF"
-        description="Extract vocabulary terms and definitions from a PDF, review them, then save them as a study set."
+        description="Upload a PDF or paste text. The terms and definitions found are shown for review before you save them as a study set."
+      />
+
+      <Segmented<Mode>
+        label="Add vocabulary from"
+        value={mode}
+        onChange={setMode}
+        className="mb-5 w-full sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none"
+        options={[
+          {
+            value: 'pdf',
+            label: (
+              <span className="inline-flex items-center justify-center gap-1.5">
+                <FileUp className="size-4" aria-hidden /> Upload PDF
+              </span>
+            ),
+          },
+          {
+            value: 'paste',
+            label: (
+              <span className="inline-flex items-center justify-center gap-1.5">
+                <ClipboardPaste className="size-4" aria-hidden /> Paste text
+              </span>
+            ),
+          },
+        ]}
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div className="space-y-6">
-          {stage.kind === 'idle' && <Dropzone onFile={(f) => void processFile(f)} />}
+          {mode === 'paste' && (
+            <PastePanel
+              state={paste}
+              onChange={updatePaste}
+              onPasteFromClipboard={canReadClipboard ? () => void pasteFromClipboard() : undefined}
+              onOpenFile={async () => {
+                const file = await pickFile('.txt,.csv,.tsv,.md,text/plain,text/csv');
+                if (file) await loadTextFile(file);
+              }}
+              onContinue={(result) => void finishText(result)}
+              busy={savingPaste}
+            />
+          )}
 
-          {busy && <ProcessingCard stage={stage} onCancel={cancel} />}
+          {mode === 'pdf' && stage.kind === 'idle' && <Dropzone onFile={(f) => void processFile(f)} />}
 
-          {stage.kind === 'error' && (
+          {mode === 'pdf' && busy && <ProcessingCard stage={stage} onCancel={cancel} />}
+
+          {mode === 'pdf' && stage.kind === 'error' && (
             <ErrorCard
               stage={stage}
               password={password}
@@ -206,6 +375,7 @@ export default function UploadPage() {
             />
           )}
 
+          {mode === 'pdf' && (
           <Panel className="p-5">
             <Switch
               id="keep-pdf"
@@ -215,6 +385,7 @@ export default function UploadPage() {
               description="Lets you open the source page from a card later. Stored PDFs can be removed in Settings."
             />
           </Panel>
+          )}
 
           <RecentImports
             imports={imports}
@@ -223,8 +394,8 @@ export default function UploadPage() {
               const ok = await confirm({
                 title: 'Delete this import?',
                 message: imp.savedSetId
-                  ? 'The extracted draft and stored PDF will be removed. Your saved study set stays.'
-                  : 'The extracted draft and stored PDF will be removed.',
+                  ? 'The review draft (and stored PDF, if any) will be removed. Your saved study set stays.'
+                  : 'The review draft (and stored PDF, if any) will be removed.',
                 confirmLabel: 'Delete',
                 danger: true,
               });
@@ -245,8 +416,17 @@ export default function UploadPage() {
               <ShieldCheck className="size-4 text-emerald-600" aria-hidden /> Processed on your device
             </h2>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-              Your PDF is read by PDF.js inside this browser tab. It is never uploaded to a server.
+              Your PDF or text is read inside this browser tab. It is never uploaded to a server.
             </p>
+          </Panel>
+          <Panel className="p-5">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Ways to add vocabulary</h2>
+            <ul className="mt-2 space-y-1.5 text-sm text-slate-600 dark:text-slate-400">
+              <li>Upload or drop a PDF, or a .txt or .csv file</li>
+              <li>Paste text copied from notes, a website, or a document</li>
+              <li>Copy two columns from a spreadsheet and paste them</li>
+              <li className="hidden pointer-fine:list-item">Press Ctrl+V (Cmd+V) on this page to paste a copied PDF or text</li>
+            </ul>
           </Panel>
           <Panel className="p-5">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Formats detected</h2>
@@ -421,12 +601,16 @@ function RecentImports({
           const savedTitle = imp.savedSetId ? setTitles.get(imp.savedSetId) : undefined;
           return (
             <div key={imp.id} className="flex flex-wrap items-center gap-3 p-4">
-              <FileText className="size-5 shrink-0 text-slate-400" aria-hidden />
+              {imp.kind === 'text' ? (
+                <ClipboardPaste className="size-5 shrink-0 text-slate-400" aria-hidden />
+              ) : (
+                <FileText className="size-5 shrink-0 text-slate-400" aria-hidden />
+              )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{imp.fileName}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {pluralize(imp.pageCount, 'page')} · {pluralize(imp.entries.length, 'entry', 'entries')} ·{' '}
-                  {formatRelative(imp.updatedAt)}
+                  {imp.kind === 'text' ? 'Text' : pluralize(imp.pageCount, 'page')} ·{' '}
+                  {pluralize(imp.entries.length, 'entry', 'entries')} · {formatRelative(imp.updatedAt)}
                   {imp.usedOcr && ' · OCR'}
                 </p>
               </div>
